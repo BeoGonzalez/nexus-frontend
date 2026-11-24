@@ -1,92 +1,41 @@
 import React, { type ReactNode } from "react";
-import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  Gamepad2, 
-  Users, 
-  Settings, 
-  Store 
-} from "lucide-react";
+import { redirect } from "next/navigation";
+import { getSessionUser, isAdminUser } from "@/infrastructure/bff/session";
 import LogoutButton from "./LogoutButton";
 import AdminGuard from "./AdminGuard";
+import { AdminMobileNav, AdminSidebar } from "@/presentation/components/admin/AdminNav";
+import { ThemeToggle } from "@/presentation/components/theme/ThemeToggle";
 
 export const metadata = {
-  title: "Admin Dashboard - Nexus Store",
-  description: "Panel de control administrativo",
+  title: "Administración",
+  description: "Panel de administración de Nexus Digital Store",
+  robots: { index: false },
 };
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+/** Operate surface: opaque, dense, no chromatic backdrop. Glass only on the top bar and on dialogs. */
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  // OWASP A01: autorización en el servidor en cada render del panel (no solo en src/proxy.ts).
+  const user = await getSessionUser();
+  if (!user) redirect("/login?redirect=%2Fadmin");
+  const allowed = isAdminUser(user);
+
   return (
-    <AdminGuard>
-      <div className="flex min-h-screen bg-[#0A0A0A] text-white selection:bg-[#48c8d8]/30">
-        {/* Sidebar */}
-        <aside className="w-64 border-r border-white/5 bg-[#101214] hidden md:flex flex-col">
-          <div className="flex h-16 items-center px-6 border-b border-white/5">
-            <Link href="/admin" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-              <div className="relative flex size-8 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#e92f3d_0_50%,#47c9d8_50%)]">
-                <div className="absolute left-1/2 top-[22%] size-1 -translate-x-1/2 rounded-full bg-black" />
-              </div>
-              <span className="font-black text-sm tracking-widest text-[#48c8d8]">NEXUS ADMIN</span>
-            </Link>
-          </div>
-          
-          <nav className="flex-1 space-y-1.5 p-4">
-            <Link 
-              href="/admin" 
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <LayoutDashboard size={18} /> Dashboard
-            </Link>
-            <Link 
-              href="/admin/games" 
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <Gamepad2 size={18} /> Juegos & Stock
-            </Link>
-            <Link 
-              href="/admin/users" 
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <Users size={18} /> Usuarios (Cognito)
-            </Link>
-            <Link 
-              href="/admin/settings" 
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <Settings size={18} /> Configuración
-            </Link>
-          </nav>
+    <AdminGuard allowed={allowed} email={user.email}>
+      <div className="flex min-h-dvh bg-bg text-ink">
+        <AdminSidebar footer={<LogoutButton />} />
 
-          <div className="p-4 border-t border-white/5">
-            <Link 
-              href="/" 
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <Store size={18} /> Volver a la Tienda
-            </Link>
-            <LogoutButton />
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col min-w-0">
-          <header className="flex h-16 items-center justify-between border-b border-white/5 bg-[#101214]/50 px-6 backdrop-blur-md sticky top-0 z-10">
-            <h2 className="text-sm font-bold text-white/50">Admin Workspace</h2>
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                Cognito Admin Activo
-              </span>
-              <div className="size-8 rounded-full bg-gradient-to-tr from-[#48c8d8] to-[#f3343b] p-0.5">
-                <div className="size-full rounded-full bg-[#101214] border-2 border-transparent flex items-center justify-center text-xs font-bold">
-                  A
-                </div>
-              </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="glass-chrome sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-x-0 border-t-0 px-3 sm:px-6">
+            <div className="flex items-center gap-1">
+              <AdminMobileNav footer={<LogoutButton />} />
+              <p className="text-sm font-medium text-ink-2">Panel de administración</p>
             </div>
+            <ThemeToggle />
           </header>
-          <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-[#0A0A0A]">
+          <main id="contenido" className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
             {children}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </AdminGuard>
   );

@@ -3,6 +3,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+// Suprimir advertencia de deprecación de THREE.Clock en r183+ proveniente de @react-three/fiber
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('THREE.Clock: This module has been deprecated') ||
+       args[0].includes('Clock: This module has been deprecated'))
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   // Patrón Singleton in-component:
   // Inicializamos QueryClient de forma perezosa para evitar que se comparta

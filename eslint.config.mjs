@@ -12,6 +12,19 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Herramientas locales de agentes/diseño y artefactos (no son código de la aplicación).
+    ".agent/**",
+    ".claude/**",
+    ".gemini/**",
+    ".impeccable/**",
+    ".opencode/**",
+    ".pi/**",
+    ".playwright/**",
+    ".superpowers/**",
+    ".taste-skill/**",
+    "openspec/**",
+    "docs/**",
+    "coverage/**",
   ]),
 ]);
 

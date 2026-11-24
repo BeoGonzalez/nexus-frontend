@@ -1,0 +1,11 @@
+# Gitleaks (OWASP A04): reglas por defecto + allowlist mínima y justificada.
+# Para un falso positivo puntual usa el comentario `gitleaks:allow` en la línea, no amplíes esta lista.
+title = "nexus-frontend"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Tokens JWT de juguete en tests (cabecera/payload/firma ficticios, sin valor real)"
+paths = ['''(^|/)__tests__/.*\.test\.tsx?$''']
+regexes = ['''eyJhbGciOiJSUzI1NiJ9\.eyJzdWIiOiI[0-9A-Za-z]+\.[0-9A-Za-z_-]+''']

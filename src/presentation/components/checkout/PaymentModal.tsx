@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useCheckoutMutation } from '@/application/hooks/useCheckoutMutation';
 import { PaymentMethodType } from '@/domain/models/payment';
-import { CreateOrderDTO, OrderStatus, OrderResponse } from '@/domain/models/order';
+import { CreateOrderDTO } from '@/domain/models/order';
 import { X, CheckCircle, AlertCircle, CreditCard, Landmark, Loader2 } from 'lucide-react';
 
 interface PaymentModalProps {
