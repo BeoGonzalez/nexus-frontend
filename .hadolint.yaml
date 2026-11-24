@@ -1,0 +1,6 @@
+# Hadolint (OWASP A02): falla desde nivel warning, igual que en nexus-backend.
+failure-threshold: warning
+# Solo registros de confianza para las imágenes base (distroless se publica en gcr.io).
+trustedRegistries:
+  - docker.io
+  - gcr.io

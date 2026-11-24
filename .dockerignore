@@ -16,8 +16,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Entorno y Secretos locales
-.env*.local
+# Entorno y Secretos: NINGÚN .env entra en la imagen (la config llega en runtime con --env-file)
+.env*
 
 # Control de Versiones y Editores
 .git
@@ -32,3 +32,17 @@ CLAUDE.md
 # Archivos del Sistema Operativo
 .DS_Store
 Thumbs.db
+
+# Herramientas locales, pruebas y documentación (no van a producción)
+.agent
+.claude
+.gemini
+.impeccable
+.opencode
+.pi
+.playwright
+.superpowers
+.taste-skill
+docs
+openspec
+coverage

@@ -2,84 +2,1018 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+/* Theme is set on <html data-theme> by the boot script before first paint. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+/* ==========================================================================
+   Nexus design tokens — "vidrio cromático"
+   The interface is neutral; colour comes from the cover of the game in focus.
+   Every value a component uses lives here. Light is :root, dark overrides.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Ground & ink ---------------------------------------------------- */
+  --bg: #f2f3f5;              /* cool porcelain */
+  --bg-elevated: #fbfbfc;
+  --ink: #0d0f12;
+  --ink-2: #3b414a;           /* secondary text: 9.4:1 on --bg */
+  --ink-3: #59606a;           /* tertiary/meta: 5.9:1 on --bg */
+  --line: rgb(13 15 18 / 0.1);
+  --line-strong: rgb(13 15 18 / 0.18);
+  --surface-pressed: rgb(13 15 18 / 0.08);
+  --surface-hover: rgb(13 15 18 / 0.05);
+
+  /* ---- Roles ----------------------------------------------------------- */
+  --buy: #b35200;             /* brand amber, deepened: 5.0:1 with white */
+  --buy-hover: #9c4700;
+  --on-buy: #ffffff;
+  --focus: #0b7285;           /* brand cyan, deepened for light ground */
+  --danger: #b42318;
+  --on-danger: #ffffff;
+  --success: #1a7a4c;
+  --warning: #8a5a00;
+
+  /* ---- Glass: chrome (nav, filter bar, floating controls) -------------- */
+  --glass-chrome-bg: rgb(255 255 255 / 0.72);
+  --glass-chrome-blur: 28px;
+  --glass-chrome-sat: 180%;
+  --glass-chrome-border: rgb(255 255 255 / 0.72);
+  --glass-chrome-hi-top: rgb(255 255 255 / 0.95);
+  --glass-chrome-hi-bottom: rgb(255 255 255 / 0.32);
+  --glass-chrome-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 14px 32px -18px rgb(16 24 40 / 0.3);
+  --glass-chrome-solid: #fbfbfc;
+
+  /* ---- Glass: raised (drawer, dialogs, popovers) ----------------------- */
+  --glass-raised-bg: rgb(250 250 251 / 0.76);
+  --glass-raised-blur: 36px;
+  --glass-raised-sat: 170%;
+  --glass-raised-border: rgb(255 255 255 / 0.8);
+  --glass-raised-hi-top: rgb(255 255 255 / 1);
+  --glass-raised-hi-bottom: rgb(255 255 255 / 0.4);
+  --glass-raised-shadow: 0 2px 6px rgb(16 24 40 / 0.06), 0 32px 64px -28px rgb(16 24 40 / 0.38);
+  --glass-raised-solid: #fbfbfc;
+
+  /* ---- Glass: card (no backdrop-filter; reads as glass over the blurred field) */
+  --glass-card-bg: rgb(255 255 255 / 0.52);
+  --glass-card-bg-hover: rgb(255 255 255 / 0.7);
+  --glass-card-border: rgb(255 255 255 / 0.75);
+  --glass-card-hi-top: rgb(255 255 255 / 0.9);
+  --glass-card-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 10px 24px -16px rgb(16 24 40 / 0.28);
+  --glass-card-solid: #ffffff;
+
+  /* ---- Chromatic backdrop --------------------------------------------- */
+  --backdrop-blur: 72px;
+  --backdrop-sat: 1.5;
+  --backdrop-image-opacity: 0.85;
+  --tint: rgb(242 243 245 / 0.74);  /* measured: secondary text >= 4.5:1 over the darkest cover */
+  --field-a: #cfe9ef;               /* neutral field when no cover is in focus */
+  --field-b: #f6e3d2;
+  --field-c: #dcdcf4;
+
+  /* ---- Specular highlight on cards ------------------------------------ */
+  --specular: rgb(255 255 255 / 0.55);
+
+  /* ---- Skeleton -------------------------------------------------------- */
+  --skeleton: rgb(13 15 18 / 0.07);
+  --skeleton-sheen: rgb(255 255 255 / 0.55);
+
+  /* ---- Cover fallback (no image) -------------------------------------- */
+  --cover-fallback-a: #d9dde4;
+  --cover-fallback-b: #b8bfca;
+
+  /* ---- 3D scenes (read by canvases through getComputedStyle) ----------- */
+  --scene-case: #e4e7ec;
+  --scene-spine: #cfd4db;
+  --scene-back: #d9dde3;
+  --scene-blank: #c7ccd4;
+  --scene-key: #ffffff;
+  --scene-rim: #7fc4cf;
+  --scene-fill: #f2c48a;
+  /* Assistant lens: clear glass that takes its colour from the cover in focus */
+  --lens-tint: #f3f6fa;
+  --lens-key: #ffffff;
+  --lens-rim: #cfd8e3;
+
+  /* ---- Radii ------------------------------------------------------------ */
+  --radius: 0.875rem;          /* shadcn base */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --dur-1: 150ms;
+  --dur-2: 240ms;
+  --dur-3: 360ms;
+  --dur-hero: 900ms;
+  /* Critically-damped-ish spring (≈1% overshoot), sampled into linear(). */
+  --spring: linear(0, 0.0175, 0.0657 4.4%, 0.2399 9.4%, 0.4886 15.2%, 0.7154 21.5%, 0.8744 28.3%, 0.9583 34.9%, 0.9947 41.3%, 1.0072 48%, 1.0089 55%, 1.0049 64.4%, 1.0007 77.9%, 1);
+  /* Livelier spring (≈8% overshoot) for confirmations: cart count bump. */
+  --spring-bounce: linear(0, 0.06, 0.24 7%, 0.53 13%, 0.85 20%, 1.04 27%, 1.08 32%, 1.07 37%, 1.02 46%, 0.99 56%, 1);
+  --out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --in-soft: cubic-bezier(0.4, 0, 1, 1);
+}
+
+[data-theme=dark] {
+  color-scheme: dark;
+
+  --bg: #0e1014;              /* deep graphite */
+  --bg-elevated: #15181d;
+  --ink: #f4f5f7;
+  --ink-2: #bcc1c9;
+  --ink-3: #959ba5;
+  --line: rgb(255 255 255 / 0.1);
+  --line-strong: rgb(255 255 255 / 0.18);
+  --surface-pressed: rgb(255 255 255 / 0.14);
+  --surface-hover: rgb(255 255 255 / 0.07);
+
+  --buy: #ff9900;
+  --buy-hover: #ffad33;
+  --on-buy: #1a0e00;
+  --focus: #5fd0de;
+  --danger: #ff7a6e;
+  --on-danger: #1a0402;
+  --success: #4cc38a;
+  --warning: #f5b94a;
+
+  --glass-chrome-bg: rgb(26 29 35 / 0.56);
+  --glass-chrome-sat: 170%;
+  --glass-chrome-border: rgb(255 255 255 / 0.1);
+  --glass-chrome-hi-top: rgb(255 255 255 / 0.14);
+  --glass-chrome-hi-bottom: rgb(255 255 255 / 0.04);
+  --glass-chrome-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 18px 44px -20px rgb(0 0 0 / 0.75);
+  --glass-chrome-solid: #1a1d23;
+
+  --glass-raised-bg: rgb(22 25 31 / 0.82);
+  --glass-raised-border: rgb(255 255 255 / 0.11);
+  --glass-raised-hi-top: rgb(255 255 255 / 0.16);
+  --glass-raised-hi-bottom: rgb(255 255 255 / 0.05);
+  --glass-raised-shadow: 0 2px 8px rgb(0 0 0 / 0.35), 0 40px 80px -30px rgb(0 0 0 / 0.85);
+  --glass-raised-solid: #181b21;
+
+  --glass-card-bg: rgb(255 255 255 / 0.055);
+  --glass-card-bg-hover: rgb(255 255 255 / 0.09);
+  --glass-card-border: rgb(255 255 255 / 0.09);
+  --glass-card-hi-top: rgb(255 255 255 / 0.12);
+  --glass-card-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 14px 30px -18px rgb(0 0 0 / 0.7);
+  --glass-card-solid: #171a20;
+
+  --backdrop-image-opacity: 0.7;
+  --tint: rgb(14 16 20 / 0.58);
+  --field-a: #0f3a44;
+  --field-b: #3d2410;
+  --field-c: #1e1d4a;
+
+  --specular: rgb(255 255 255 / 0.16);
+
+  --skeleton: rgb(255 255 255 / 0.07);
+  --skeleton-sheen: rgb(255 255 255 / 0.1);
+
+  --cover-fallback-a: #2a2f38;
+  --cover-fallback-b: #1a1e25;
+
+  --scene-case: #14171d;
+  --scene-spine: #0c0e12;
+  --scene-back: #101318;
+  --scene-blank: #1c2029;
+  --scene-key: #ffffff;
+  --scene-rim: #48c8d8;
+  --scene-fill: #ff9900;
+  --lens-tint: #b9c6d3;
+  --lens-key: #e8eef5;
+  --lens-rim: #5fd0de;
+}
+
+/* Phones: lighter blur keeps scrolling smooth on mid-range GPUs. */
+@media (max-width: 640px) {
+  :root {
+    --glass-chrome-blur: 16px;
+    --glass-raised-blur: 22px;
+    --backdrop-blur: 48px;
+  }
+}
+
+/* shadcn/ui and Tailwind mapping -------------------------------------------------- */
 @theme inline {
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-archivo), var(--font-geist), ui-sans-serif, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-surface-pressed: var(--surface-pressed);
+  --color-surface-hover: var(--surface-hover);
+  --color-buy: var(--buy);
+  --color-buy-hover: var(--buy-hover);
+  --color-on-buy: var(--on-buy);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-skeleton: var(--skeleton);
+
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-pill: 999px;
+
+  --ease-spring: var(--spring);
+  --ease-spring-bounce: var(--spring-bounce);
+  --ease-out-soft: var(--out-soft);
+  --ease-in-soft: var(--in-soft);
+
+  /* Type scale (Bringhurst-ish 1.25 with fluid display steps) */
+  --text-display-1: clamp(2.5rem, 1.35rem + 4.6vw, 5.25rem);
+  --text-display-1--line-height: 0.98;
+  --text-display-1--letter-spacing: -0.035em;
+  --text-display-2: clamp(1.875rem, 1.35rem + 2.2vw, 3rem);
+  --text-display-2--line-height: 1.04;
+  --text-display-2--letter-spacing: -0.03em;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.015em;
+  --text-price: 1.75rem;
+  --text-price--line-height: 1;
+  --text-price--letter-spacing: -0.02em;
+
+  /* shadcn semantic names → Nexus tokens */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--glass-card-solid);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--glass-raised-solid);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--bg);
+  --color-secondary: var(--surface-pressed);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-hover);
+  --color-muted-foreground: var(--ink-2);
+  --color-accent: var(--surface-pressed);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--focus);
+  --color-chart-1: var(--focus);
+  --color-chart-2: var(--buy);
+  --color-chart-3: var(--success);
+  --color-chart-4: var(--warning);
+  --color-chart-5: var(--ink-3);
+  --color-sidebar: var(--bg-elevated);
+  --color-sidebar-foreground: var(--ink);
+  --color-sidebar-primary: var(--ink);
+  --color-sidebar-primary-foreground: var(--bg);
+  --color-sidebar-accent: var(--surface-pressed);
+  --color-sidebar-accent-foreground: var(--ink);
+  --color-sidebar-border: var(--line);
+  --color-sidebar-ring: var(--focus);
 }
 
-:root {
-  color-scheme: dark;
-  --background: oklch(0.10 0.03 260); /* Deep space blue/black */
-  --foreground: oklch(0.98 0.01 260);
-  --card: oklch(0.15 0.03 260); 
-  --card-foreground: oklch(0.98 0.01 260);
-  --popover: oklch(0.15 0.03 260);
-  --popover-foreground: oklch(0.98 0.01 260);
-  --primary: oklch(0.8 0.15 195); /* Electric Cyan */
-  --primary-foreground: oklch(0.10 0.03 260);
-  --secondary: oklch(0.20 0.05 260);
-  --secondary-foreground: oklch(0.98 0.01 260);
-  --muted: oklch(0.20 0.05 260);
-  --muted-foreground: oklch(0.7 0.02 260);
-  --accent: oklch(0.65 0.25 35); /* Fiery Orange */
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.55 0.25 25); /* Fiery Red */
-  --border: oklch(0.25 0.05 260);
-  --input: oklch(0.20 0.05 260);
-  --ring: oklch(0.8 0.15 195);
-  --radius: 0.5rem;
-}
-
-@layer utilities {
-  .tactile-ring {
-    @apply ring-1 ring-inset ring-zinc-800 focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 outline-none;
-  }
-}
-
-
+/* ==========================================================================
+   Base
+   ========================================================================== */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-line;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scrollbar-color: var(--line-strong) transparent;
   }
   body {
-    @apply bg-background text-foreground;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" on, "cv11" on;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--focus) 28%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  :where(a) {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+  input,
+  textarea {
+    caret-color: var(--focus);
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* ==========================================================================
+   Materials
+   ========================================================================== */
+@layer components {
+  .glass-chrome,
+  .glass-raised {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .glass-chrome {
+    background: var(--glass-chrome-bg);
+    -webkit-backdrop-filter: blur(var(--glass-chrome-blur)) saturate(var(--glass-chrome-sat));
+    backdrop-filter: blur(var(--glass-chrome-blur)) saturate(var(--glass-chrome-sat));
+    border: 1px solid var(--glass-chrome-border);
+    box-shadow:
+      inset 0 1px 0 var(--glass-chrome-hi-top),
+      inset 0 -1px 0 var(--glass-chrome-hi-bottom),
+      var(--glass-chrome-shadow);
+  }
+
+  .glass-raised {
+    background: var(--glass-raised-bg);
+    -webkit-backdrop-filter: blur(var(--glass-raised-blur)) saturate(var(--glass-raised-sat));
+    backdrop-filter: blur(var(--glass-raised-blur)) saturate(var(--glass-raised-sat));
+    border: 1px solid var(--glass-raised-border);
+    box-shadow:
+      inset 0 1px 0 var(--glass-raised-hi-top),
+      inset 0 -1px 0 var(--glass-raised-hi-bottom),
+      var(--glass-raised-shadow);
+  }
+
+  .glass-card {
+    background: var(--glass-card-bg);
+    border: 1px solid var(--glass-card-border);
+    box-shadow: inset 0 1px 0 var(--glass-card-hi-top), var(--glass-card-shadow);
+  }
+
+  /* Opaque surfaces for operational screens (admin) */
+  .surface-solid {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+  }
+
+  .font-display-wide {
+    font-family: var(--font-display);
+    font-stretch: 118%;
+    font-variation-settings: "wdth" 118;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--skeleton);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 20%, var(--skeleton-sheen) 50%, transparent 80%);
+    transform: translateX(-100%);
+    animation: skeleton-sheen 1.6s var(--out-soft) infinite;
+  }
+
+  .cover-fallback {
+    background:
+      radial-gradient(120% 80% at 20% 10%, var(--cover-fallback-a), transparent 60%),
+      linear-gradient(160deg, var(--cover-fallback-a), var(--cover-fallback-b));
+  }
+}
+
+@keyframes skeleton-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* ==========================================================================
+   Shell
+   ========================================================================== */
+.wordmark {
+  font-size: 1.0625rem;
+  font-weight: 780;
+  letter-spacing: -0.02em;
+}
+
+/* Chromatic backdrop: neutral field → blurred cover → tint */
+.chromatic-field {
+  background:
+    radial-gradient(60% 55% at 12% 18%, var(--field-a), transparent 70%),
+    radial-gradient(55% 50% at 88% 8%, var(--field-b), transparent 70%),
+    radial-gradient(70% 60% at 60% 100%, var(--field-c), transparent 72%),
+    var(--bg);
+}
+.chromatic-layer {
+  inset: -12%;
+  filter: blur(var(--backdrop-blur)) saturate(var(--backdrop-sat));
+  opacity: var(--backdrop-image-opacity);
+  animation: backdrop-in var(--dur-hero) var(--out-soft) both;
+  transition: opacity var(--dur-hero) var(--out-soft);
+}
+.chromatic-layer[data-leaving] {
+  opacity: 0;
+}
+.chromatic-tint {
+  background: var(--tint);
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Toast confirmation */
+.toast {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity var(--dur-2) var(--out-soft),
+    transform var(--dur-3) var(--spring);
+}
+.toast[data-visible] {
+  opacity: 1;
+  transform: none;
+}
+/* Leaving is quicker than arriving */
+.toast:not([data-visible]) {
+  transition:
+    opacity var(--dur-1) var(--in-soft),
+    transform var(--dur-1) var(--in-soft);
+}
+
+/* Cart count reacts when something lands in the cart */
+.cart-count[data-bumped] {
+  animation: count-bump var(--dur-3) var(--spring-bounce);
+}
+@keyframes count-bump {
+  from {
+    transform: scale(0.6);
+  }
+}
+
+/* Menus & sheets */
+.menu-pop {
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, top right);
+  animation: menu-in var(--dur-2) var(--spring);
+}
+.menu-pop[data-state="closed"] {
+  animation: menu-out var(--dur-1) var(--in-soft) forwards;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+@keyframes menu-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--r-xs);
+  outline: none;
+  cursor: pointer;
+  color: var(--ink);
+}
+.menu-item[data-highlighted] {
+  background: var(--surface-pressed);
+}
+.sheet-scrim {
+  background: color-mix(in srgb, var(--bg) 40%, transparent);
+  animation: fade-in var(--dur-2) var(--out-soft);
+}
+.sheet-scrim[data-state="closed"] {
+  animation: fade-out var(--dur-2) var(--in-soft) forwards;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transform: none;
+    transition: opacity var(--dur-2) linear;
+  }
+  .cart-count[data-bumped] {
+    animation: fade-in var(--dur-2) linear;
+  }
+  .menu-pop {
+    animation-name: fade-in;
+  }
+  .menu-pop[data-state="closed"] {
+    animation-name: fade-out;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   Hero: the one orchestrated entrance (≤ --dur-hero)
+   ========================================================================== */
+.hero-cover-frame {
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12), 0 40px 80px -36px rgb(0 0 0 / 0.55);
+  animation: hero-cover var(--dur-hero) var(--spring) both;
+}
+.hero-line {
+  animation: rise calc(var(--dur-3) + 120ms) var(--spring) both;
+}
+.hero-meta { animation-delay: 140ms; }
+.hero-title { animation-delay: 210ms; }
+.hero-desc { animation-delay: 300ms; }
+.hero-buy { animation-delay: 380ms; }
+
+@keyframes hero-cover {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.94) rotate(-1.5deg);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ==========================================================================
+   Game card: staggered first entrance; on hover the surface lifts 2px, the cover
+   zooms inside its frame and a reflection follows the pointer (no tilt).
+   ========================================================================== */
+.game-card[data-enter] {
+  animation: rise var(--dur-3) var(--spring) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+.card-surface {
+  transition:
+    transform var(--dur-2) var(--spring),
+    background-color var(--dur-2) var(--out-soft);
+}
+.cover-zoom {
+  transition: transform var(--dur-3) var(--spring);
+}
+.card-specular {
+  position: absolute;
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  background: radial-gradient(circle at center, var(--specular), transparent 32%);
+  opacity: 0;
+  transform: translate(var(--spec-x, 0), var(--spec-y, 0));
+  transition: opacity var(--dur-2) var(--out-soft);
+  mix-blend-mode: soft-light;
+}
+@media (hover: hover) and (pointer: fine) {
+  .game-card:hover .card-surface {
+    transform: translateY(-2px);
+    background: var(--glass-card-bg-hover);
+  }
+  .game-card:hover .cover-zoom {
+    transform: scale(1.025);
+  }
+  .game-card:hover .card-specular {
+    opacity: 1;
+  }
+}
+/* Whole card is the link target; the add button sits above it. */
+.card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.card-link:focus-visible {
+  outline: none;
+}
+.card-link:focus-visible::after {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Platforms: a type moment. Names set large and expanded. */
+.platform-tile {
+  transition:
+    transform var(--dur-2) var(--spring),
+    background-color var(--dur-2) var(--out-soft);
+}
+.platform-name {
+  font-size: clamp(2rem, 1.1rem + 3vw, 3.75rem);
+  letter-spacing: -0.035em;
+}
+/* A hand of the platform's own covers, fanned from the tile's right edge (--k: -1, 0, 1). */
+.platform-fan-card {
+  right: calc(18% - var(--k) * 26%);
+  transform: translateY(-50%) rotate(calc(var(--k) * 7deg)) translateX(calc(var(--k) * 4%));
+  transform-origin: 50% 120%;
+  box-shadow: var(--glass-card-shadow);
+  z-index: calc(2 - var(--k) * var(--k));
+  transition: transform var(--dur-3) var(--spring);
+}
+@media (hover: hover) and (pointer: fine) {
+  .platform-tile:hover .platform-fan-card {
+    transform: translateY(-52%) rotate(calc(var(--k) * 11deg)) translateX(calc(var(--k) * 10%));
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .platform-tile:hover {
+    transform: translateY(-2px);
+    background: var(--glass-card-bg-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cover-frame,
+  .hero-line,
+  .game-card[data-enter] {
+    animation-name: fade-in;
+    animation-timing-function: linear;
+  }
+  .card-surface,
+  .cover-zoom,
+  .platform-tile {
+    transform: none !important;
+    transition: background-color var(--dur-2) linear;
+  }
+  .platform-fan-card {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Catalogue
+   ========================================================================== */
+.facet-check {
+  appearance: none;
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--glass-card-bg);
+  transition:
+    background-color var(--dur-1) var(--out-soft),
+    border-color var(--dur-1) var(--out-soft);
+}
+.facet-check::after {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  background: var(--bg);
+  clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 22%, 85% 8%, 39% 69%);
+  transform: scale(0);
+  transition: transform var(--dur-2) var(--spring-bounce);
+}
+.facet-check:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.facet-check:checked::after {
+  transform: scale(1);
+}
+.facet-check:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.search-field:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.results-fade {
+  animation: fade-in var(--dur-2) var(--out-soft);
+}
+
+.sheet-bottom {
+  animation: sheet-up var(--dur-3) var(--spring);
+}
+.sheet-bottom[data-state="closed"] {
+  animation: sheet-down var(--dur-2) var(--in-soft) forwards;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Cart drawer: bottom sheet on phones, side panel from the right on wider screens */
+.cart-sheet {
+  animation: sheet-up var(--dur-3) var(--spring);
+}
+.cart-sheet[data-state="closed"] {
+  animation: sheet-down var(--dur-2) var(--in-soft) forwards;
+}
+@media (min-width: 640px) {
+  .cart-sheet {
+    animation-name: panel-in;
+  }
+  .cart-sheet[data-state="closed"] {
+    animation-name: panel-out;
+  }
+}
+@keyframes panel-in {
+  from {
+    transform: translateX(calc(100% + 1rem));
+  }
+}
+@keyframes panel-out {
+  to {
+    transform: translateX(calc(100% + 1rem));
+  }
+}
+
+/* Checkout: each step slides in from where the flow is heading; the receipt settles in */
+.step-in {
+  animation: step-in var(--dur-3) var(--spring);
+}
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.receipt-in,
+.login-panel {
+  animation: rise var(--dur-3) var(--spring);
+}
+.receipt-check {
+  animation: count-bump var(--dur-3) var(--spring-bounce);
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #nexus-printable-receipt,
+  #nexus-printable-receipt * {
+    visibility: visible;
+  }
+  #nexus-printable-receipt {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0;
+  }
+  #nexus-printable-receipt button {
+    display: none;
+  }
+}
+
+/* Assistant: the panel grows out of its launcher (bottom right) */
+.assistant-panel {
+  transform-origin: bottom right;
+  animation: assistant-in var(--dur-3) var(--spring);
+}
+.assistant-panel[data-state="closed"] {
+  animation: assistant-out var(--dur-1) var(--in-soft) forwards;
+}
+@keyframes assistant-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
+}
+@keyframes assistant-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+.assistant-launcher {
+  transition: transform var(--dur-2) var(--spring);
+}
+@media (hover: hover) {
+  .assistant-launcher:hover {
+    transform: translateY(-2px);
+  }
+}
+.assistant-launcher:active {
+  transform: scale(0.95);
+}
+
+/* During a page morph the destination is already settled: entrances would fight the shared cover */
+:root:active-view-transition :is(.game-card[data-enter], .hero-cover-frame, .hero-line, .detail-cover, .detail-info) {
+  animation: none;
+}
+
+/* Assistant lens, CSS version: the focused cover, softened, inside a glass capsule */
+.lens-poster {
+  position: absolute;
+  inset: 22% 14%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--field-a), var(--field-b));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.18),
+    var(--glass-card-shadow);
+}
+.lens-poster > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.3) blur(1px);
+  transform: scale(1.25);
+}
+.lens-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.55), transparent 42%, transparent 70%, rgb(255 255 255 / 0.18));
+}
+
+/* The cover copy that flies to the cart (animated from JS, transform + opacity only) */
+.cart-flyer {
+  position: fixed;
+  z-index: 80;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-sm);
+  background-color: var(--cover-fallback-a);
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--glass-card-shadow);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-panel,
+  .step-in,
+  .receipt-in,
+  .login-panel,
+  .receipt-check {
+    animation: fade-in var(--dur-2) linear;
+  }
+  .cart-sheet {
+    animation: fade-in var(--dur-2) linear;
+  }
+  .cart-sheet[data-state="closed"] {
+    animation: fade-out var(--dur-1) linear forwards;
+  }
+  .assistant-panel[data-state="closed"] {
+    animation: fade-out var(--dur-1) linear forwards;
+  }
+  .assistant-launcher,
+  .assistant-launcher:hover,
+  .assistant-launcher:active {
+    transform: none;
+  }
+  .sheet-bottom {
+    animation: fade-in var(--dur-2) linear;
+  }
+  .sheet-bottom[data-state="closed"] {
+    animation: fade-out var(--dur-1) linear forwards;
+  }
+  .facet-check::after {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Product detail: the cover arrives by shared-element morph; the text fades in.
+   ========================================================================== */
+.detail-cover {
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12), 0 40px 80px -36px rgb(0 0 0 / 0.55);
+}
+.detail-info {
+  animation: rise var(--dur-3) var(--spring) both;
+  animation-delay: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-info {
+    animation-name: fade-in;
+  }
+}
+
+/* Theme toggle sits inside chrome glass: a pressed well, no extra blur layer. */
+.theme-toggle {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ==========================================================================
+   Fallbacks: no backdrop-filter, reduced transparency, forced colours
+   ========================================================================== */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-chrome {
+    background: var(--glass-chrome-solid);
+  }
+  .glass-raised {
+    background: var(--glass-raised-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-chrome,
+  .glass-raised {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass-chrome {
+    background: var(--glass-chrome-solid);
+  }
+  .glass-raised {
+    background: var(--glass-raised-solid);
+  }
+  .glass-card {
+    background: var(--glass-card-solid);
+  }
+  :root {
+    --tint: var(--bg);
+  }
+}
+
+@media (forced-colors: active) {
+  .glass-chrome,
+  .glass-raised,
+  .glass-card {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+}
+
+/* ==========================================================================
+   View transitions
+   ========================================================================== */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--out-soft);
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--spring);
+}
+
+/* The persistent header and backdrop never animate between pages. */
+::view-transition-group(site-header),
+::view-transition-group(site-backdrop) {
+  animation: none;
+}
+
+/* ==========================================================================
+   Reduced motion: only fades remain
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: var(--dur-2) !important;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
   }
 }

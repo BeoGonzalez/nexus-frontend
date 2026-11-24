@@ -1,3 +1,6 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# OWASP A03: no instalar versiones publicadas hace menos de 24 h (mitiga paquetes secuestrados).
+minimumReleaseAge: 1440

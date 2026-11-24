@@ -11,6 +11,20 @@ export interface RecommendedProduct {
   price_clp: string;
 }
 
+/** El backend solo usa los últimos 20 turnos; enviar más gasta tokens y amplía la superficie (LLM01/LLM10). */
+export const MAX_HISTORY_SENT = 20;
+
+/** Textos fijos ante límites del backend: nunca se inventa una respuesta (LLM06/LLM09/LLM10). */
+export const QUOTA_MESSAGE =
+  'Alcanzaste el límite de mensajes del asistente. Espera un momento antes de volver a preguntar.';
+export const UNAVAILABLE_MESSAGE = 'El asistente no está disponible en este momento.';
+
+class AssistantHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`HTTP ${status}`);
+  }
+}
+
 export function useAiAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -81,19 +95,21 @@ export function useAiAssistant() {
     setError(null);
 
     try {
-      const response = await fetch('/api/assistant/chat', {
+      const response = await fetch('/api/v1/assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: trimmed,
           message: trimmed,
-          chat_history: historySnapshot.map((m) => ({ role: m.role, content: m.content })),
+          chat_history: historySnapshot
+            .slice(-MAX_HISTORY_SENT)
+            .map((m) => ({ role: m.role, content: m.content })),
           session_id: sessionIdRef.current,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Error en servidor: ${response.status}`);
+        throw new AssistantHttpError(response.status);
       }
 
       if (!response.body) {
@@ -105,9 +121,51 @@ export function useAiAssistant() {
       let buffer = '';
       let receivedAnyToken = false;
 
+      const appendToken = (text: string) => {
+        if (!text) return;
+        receivedAnyToken = true;
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === 'assistant') {
+            next[next.length - 1] = {
+              ...last,
+              content: last.content + text,
+            };
+          }
+          return next;
+        });
+      };
+
+      const handleLine = (line: string) => {
+        if (!line.startsWith('data: ')) return;
+        const raw = line.substring(6).trim();
+        if (!raw || raw === '[DONE]') return;
+
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.type === 'token' && typeof parsed.data === 'string') {
+            appendToken(parsed.data);
+          } else if (parsed.type === 'notice' && typeof parsed.data === 'string' && parsed.data) {
+            // Aviso de grounding (LLM07): precios/stock no verificados. Se muestra como texto plano.
+            appendToken(`
+
+⚠️ ${parsed.data}`);
+          } else if (parsed.type === 'products' && Array.isArray(parsed.data)) {
+            setRecommendedProducts(parsed.data);
+          }
+        } catch {
+          // Si la línea no es JSON parseable, tratar como texto plano
+          appendToken(raw);
+        }
+      };
+
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split('\n\n');
@@ -116,42 +174,16 @@ export function useAiAssistant() {
         for (const event of events) {
           const lines = event.split('\n');
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const parsed = JSON.parse(line.substring(6));
-                if (parsed.type === 'token' && typeof parsed.data === 'string') {
-                  receivedAnyToken = true;
-                  setMessages((prev) => {
-                    const next = [...prev];
-                    const last = next[next.length - 1];
-                    if (last && last.role === 'assistant') {
-                      next[next.length - 1] = {
-                        ...last,
-                        content: last.content + parsed.data,
-                      };
-                    }
-                    return next;
-                  });
-                } else if (parsed.type === 'products' && Array.isArray(parsed.data)) {
-                  setRecommendedProducts(parsed.data);
-                }
-              } catch {
-                // Si la línea no es JSON parseable, tratar como texto directo
-                const text = line.substring(6);
-                if (text) {
-                  receivedAnyToken = true;
-                  setMessages((prev) => {
-                    const next = [...prev];
-                    const last = next[next.length - 1];
-                    if (last && last.role === 'assistant') {
-                      next[next.length - 1] = { ...last, content: last.content + text };
-                    }
-                    return next;
-                  });
-                }
-              }
-            }
+            handleLine(line);
           }
+        }
+      }
+
+      // Procesar cualquier remanente en buffer
+      if (buffer.trim()) {
+        const remainingLines = buffer.split('\n');
+        for (const line of remainingLines) {
+          handleLine(line);
         }
       }
 
@@ -167,8 +199,18 @@ export function useAiAssistant() {
           return next;
         });
       }
-    } catch (err: any) {
-      console.warn('Chat assistant fallback activado:', err.message);
+    } catch (err: unknown) {
+      const status = err instanceof AssistantHttpError ? err.status : 0;
+      const fixed = status === 429 ? QUOTA_MESSAGE : status === 503 ? UNAVAILABLE_MESSAGE : null;
+      if (fixed) {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === 'assistant') next[next.length - 1] = { ...last, content: fixed };
+          return next;
+        });
+        return;
+      }
       const fallback = getSmartFallback(trimmed);
       setMessages((prev) => {
         const next = [...prev];
@@ -187,6 +229,19 @@ export function useAiAssistant() {
   }, [messages]);
 
   const clearChat = useCallback(() => {
+    if (sessionIdRef.current) {
+      // Solo vía BFF del mismo origen y con la cookie de sesión: el backend solo borra la sesión
+      // del propio usuario. Un 401 (invitado) o un fallo de red no debe romper el reinicio de la UI.
+      fetch(`/api/v1/assistant/session/${encodeURIComponent(sessionIdRef.current)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      }).catch(() => undefined);
+    }
+    const newSession = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    sessionIdRef.current = newSession;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('nexus_chat_session_id', newSession);
+    }
     setMessages([
       {
         role: 'assistant',

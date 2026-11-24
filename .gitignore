@@ -9,9 +9,14 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.pnpm-store/
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -22,7 +27,10 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+*.key
+*.log
 
 # debug
 npm-debug.log*
@@ -30,8 +38,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (secrets) — only the template is committed
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +48,24 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+
+# AI agent tooling / local workspace (not part of the app)
+.agent/
+.claude/
+.gemini/
+.opencode/
+.pi/
+.impeccable/
+.superpowers/
+.taste-skill
+openspec/
+skills-lock.json
+docs/superpowers/
