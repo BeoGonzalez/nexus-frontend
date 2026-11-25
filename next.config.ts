@@ -23,6 +23,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Módulos nativos del profiler (Pyroscope): se cargan desde node_modules en runtime, no se empaquetan.
+  serverExternalPackages: ["@pyroscope/nodejs", "@datadog/pprof"],
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   reactStrictMode: true,

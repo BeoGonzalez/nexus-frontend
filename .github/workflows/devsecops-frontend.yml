@@ -172,6 +172,8 @@ jobs:
           build-args: |
             NEXT_PUBLIC_AWS_REGION=${{ vars.NEXT_PUBLIC_AWS_REGION }}
             NEXT_PUBLIC_IMAGE_HOSTS=${{ vars.NEXT_PUBLIC_IMAGE_HOSTS }}
+            NEXT_PUBLIC_FARO_URL=${{ vars.NEXT_PUBLIC_FARO_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ github.sha }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 

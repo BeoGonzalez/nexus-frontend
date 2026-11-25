@@ -11,6 +11,8 @@ import { join, relative, resolve } from 'node:path';
  */
 const root = resolve(process.cwd());
 const SERVER_ONLY = [/^src\/app\/api\//, /^src\/infrastructure\/bff\//, /^src\/application\/actions\//, /^src\/proxy\.ts$/];
+/** Excepción documentada: telemetría del navegador hacia Grafana Faro (no es una API del backend). */
+const TELEMETRY_EXCEPTIONS = ['src/infrastructure/observability/faro.ts'];
 const IGNORED = [/__tests__\//, /^src\/test\//, /\.test\.tsx?$/];
 
 function* walk(dir: string): Generator<string> {
@@ -53,7 +55,28 @@ describe('el navegador solo habla con el BFF del propio origen (A01)', () => {
     ['API Gateway (execute-api)', /execute-api/],
     ['URLs absolutas http(s) en fetch', /\bfetch\(\s*[`'"]https?:/],
   ])('ningún archivo cliente contiene %s', (_name, re) => {
-    expect(clientFiles.filter(({ src }) => re.test(src)).map(({ path }) => path)).toEqual([]);
+    expect(
+      clientFiles
+        .filter(({ path }) => !(re.source.includes('NEXT_PUBLIC') && TELEMETRY_EXCEPTIONS.includes(path)))
+        .filter(({ src }) => re.test(src))
+        .map(({ path }) => path)
+    ).toEqual([]);
+  });
+
+  it('la única excepción (Grafana Faro) no hace peticiones propias y valida su URL', () => {
+    // Faro es telemetría del navegador, no una API: el SDK envía al colector y la CSP limita connect-src a su
+    // origen exacto (ver buildCsp). El archivo no puede usar fetch ni leer otras NEXT_PUBLIC_*_URL.
+    for (const path of TELEMETRY_EXCEPTIONS) {
+      const src = clientFiles.find((f) => f.path === path)?.src ?? '';
+      expect(src).not.toMatch(/fetch\(/);
+      expect([...src.matchAll(/NEXT_PUBLIC_[A-Z0-9_]*URL/g)].map((m) => m[0])).toEqual(
+        expect.arrayContaining(['NEXT_PUBLIC_FARO_URL'])
+      );
+      expect(new Set([...src.matchAll(/NEXT_PUBLIC_[A-Z0-9_]*URL/g)].map((m) => m[0]))).toEqual(
+        new Set(['NEXT_PUBLIC_FARO_URL'])
+      );
+      expect(src).toMatch(/protocol !== 'https:'/);
+    }
   });
 });
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Archivo, Geist, Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/presentation/providers/QueryProvider";
+import { FaroInit } from "@/presentation/components/observability/FaroInit";
 import { THEME_BOOT_SCRIPT } from "@/presentation/lib/theme";
 import "./globals.css";
 
@@ -65,6 +66,7 @@ export default async function RootLayout({
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-dvh bg-bg font-sans text-ink antialiased">
+        <FaroInit />
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
