@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE } from '@/infrastructure/bff/sessionCookie';
 import { clientIp, rateLimit } from '@/infrastructure/bff/rateLimit';
 import { REQUEST_ID_HEADER, resolveRequestId } from '@/infrastructure/bff/requestId';
+import { faroConfig } from '@/infrastructure/observability/faro';
 
 /**
  * Proxy (antes "middleware") de Next.js 16 — primera línea de defensa, NUNCA la única:
@@ -53,6 +54,8 @@ export function buildCsp(nonce: string, dev: boolean = isDev): string {
     `https://cognito-idp.${region}.amazonaws.com`,
     `https://cognito-identity.${region}.amazonaws.com`,
     'https://*.amazoncognito.com',
+    // Grafana Faro (observabilidad del navegador): solo el origen exacto del colector, si está configurado.
+    ...(faroConfig() ? [faroConfig()!.origin] : []),
     ...(dev ? ['ws:', 'wss:'] : []),
   ];
   const directives = [

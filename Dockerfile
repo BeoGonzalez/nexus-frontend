@@ -24,10 +24,15 @@ WORKDIR /app
 # de imágenes para el optimizador (ver src/presentation/lib/imageHosts.ts).
 ARG NEXT_PUBLIC_AWS_REGION=us-east-1
 ARG NEXT_PUBLIC_IMAGE_HOSTS=""
+# Colector de Grafana Faro (observabilidad del navegador; URL pública, sin credenciales). Vacío = desactivado.
+ARG NEXT_PUBLIC_FARO_URL=""
+ARG NEXT_PUBLIC_APP_VERSION=dev
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_AWS_REGION=${NEXT_PUBLIC_AWS_REGION} \
-    NEXT_PUBLIC_IMAGE_HOSTS=${NEXT_PUBLIC_IMAGE_HOSTS}
+    NEXT_PUBLIC_IMAGE_HOSTS=${NEXT_PUBLIC_IMAGE_HOSTS} \
+    NEXT_PUBLIC_FARO_URL=${NEXT_PUBLIC_FARO_URL} \
+    NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
