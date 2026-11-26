@@ -7,8 +7,6 @@ import { flushSync } from "react-dom";
 import {
   useLoginMutation,
   useRegisterMutation,
-  useConfirmAccountMutation,
-  useResendCodeMutation,
   logoutRequest,
 } from "@/application/hooks/useAuthMutations";
 import { safeRedirectPath } from "@/presentation/lib/safeRedirect";
@@ -32,15 +30,8 @@ function LoginForm() {
   const [toast, setToast] = useState<string | null>(null);
   const [activeUser, setActiveUser] = useState<{ email?: string; name?: string } | null>(null);
 
-  // Estados para el flujo de confirmación de código de Cognito si aplica
-  const [confirmationStep, setConfirmationStep] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState("");
-  const [confirmationCode, setConfirmationCode] = useState("");
-
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
-  const confirmMutation = useConfirmAccountMutation();
-  const resendCodeMutation = useResendCodeMutation();
   // A07: tras un 429 del backend, el envío queda bloqueado durante Retry-After.
   const cooldown = useCooldown();
 
@@ -80,29 +71,11 @@ function LoginForm() {
     const email = String(data.get("email") || "").trim();
     const password = String(data.get("password") || "");
 
-    // 1. Flujo de Confirmación de Cuenta
-    if (confirmationStep) {
-      if (!confirmationCode || confirmationCode.length < 6) {
-        showToast("Ingresa el código de confirmación de 6 dígitos.");
-        return;
-      }
-      try {
-        await confirmMutation.mutateAsync({
-          email: registeredEmail,
-          confirmation_code: confirmationCode,
-        });
-        showToast("¡Cuenta confirmada exitosamente en AWS Cognito! Ya puedes iniciar sesión.");
-        setConfirmationStep(false);
-        setAuthMode("login");
-      } catch (err: unknown) {
-        reportError(err, "Código de confirmación inválido o expirado.");
-      }
-      return;
-    }
-
-    // 2. Flujo de Registro con Cognito (POST /api/v1/auth/register a través del BFF)
+    // 1. Registro en Cognito (POST /api/v1/auth/register a través del BFF). La Lambda PreSignUp del
+    //    User Pool confirma la cuenta al crearla: no hay código de verificación y se entra directamente.
     if (authMode === "register") {
       const name = String(data.get("name") || "").trim();
+      const confirmPassword = String(data.get("confirm_password") || "");
       if (!name) {
         showToast("Por favor ingresa tu nombre completo.");
         return;
@@ -112,33 +85,36 @@ function LoginForm() {
         showToast(PASSWORD_POLICY_MESSAGE);
         return;
       }
+      if (password !== confirmPassword) {
+        showToast("Las contraseñas no coinciden.");
+        return;
+      }
 
       try {
-        const regRes = await registerMutation.mutateAsync({ name, email, password });
-        if (regRes?.is_confirmed === false) {
-          setRegisteredEmail(email);
-          setConfirmationStep(true);
-          showToast("Código de verificación enviado a tu correo.");
-          return;
-        }
+        await registerMutation.mutateAsync({ name, email, password });
+      } catch (err: unknown) {
+        reportError(err, "Error al registrar usuario en AWS Cognito.");
+        return;
+      }
 
-        // Si la cuenta ya está confirmada, iniciamos sesión automáticamente
-        showToast("¡Cuenta registrada exitosamente en AWS Cognito! Entrando a tu cuenta…");
+      showToast("¡Cuenta creada! Entrando a tu cuenta…");
+      try {
         const loginRes = await loginMutation.mutateAsync({ email, password });
         if (loginRes?.authenticated) {
           setTimeout(() => {
             window.location.href = redirectParam;
           }, 600);
-        } else {
-          setAuthMode("login");
+          return;
         }
-      } catch (err: unknown) {
-        reportError(err, "Error al registrar usuario en AWS Cognito.");
+      } catch {
+        // La cuenta existe; el usuario puede entrar a mano desde el formulario de login.
       }
+      setAuthMode("login");
+      showToast("Cuenta creada. Inicia sesión con tu correo y contraseña.");
       return;
     }
 
-    // 3. Flujo de Login (POST /api/v1/auth/login a través del BFF)
+    // 2. Flujo de Login (POST /api/v1/auth/login a través del BFF)
     if (!email.includes("@") || password.length < 6) {
       showToast("Ingresa un correo válido y una contraseña de al menos 6 caracteres.");
       return;
@@ -163,21 +139,19 @@ function LoginForm() {
   function switchMode(next: "login" | "register") {
     flushSync(() => {
       setAuthMode(next);
-      setConfirmationStep(false);
     });
     firstFieldRef.current?.focus();
   }
 
-  const busy = loginMutation.isPending || registerMutation.isPending || confirmMutation.isPending;
+  const busy = loginMutation.isPending || registerMutation.isPending;
   const blocked = busy || cooldown.active;
   const formError =
     (loginMutation.error as Error | null)?.message ||
     (registerMutation.error as Error | null)?.message ||
-    (confirmMutation.error as Error | null)?.message ||
     null;
   const errorId = "login-error";
   const describedBy = formError ? errorId : undefined;
-  const title = confirmationStep ? "Confirmar cuenta" : authMode === "login" ? "Iniciar sesión" : "Crear cuenta";
+  const title = authMode === "login" ? "Iniciar sesión" : "Crear cuenta";
   const storeTarget = redirectParam;
 
   return (
@@ -212,9 +186,7 @@ function LoginForm() {
             {title}
           </h1>
           <p className="mt-3 text-pretty text-ink-2">
-            {confirmationStep
-              ? `Escribe el código de 6 dígitos que enviamos a ${registeredEmail}.`
-              : authMode === "login"
+            {authMode === "login"
               ? "Entra para pagar, ver tus pedidos y recuperar tus claves."
               : "Con una cuenta guardas tus pedidos y recibes las claves en tu correo."}
           </p>
@@ -248,7 +220,7 @@ function LoginForm() {
           )}
 
           <form
-            key={confirmationStep ? "confirm" : authMode}
+            key={authMode}
             aria-label={title}
             onSubmit={handleSubmit}
             noValidate={false}
@@ -265,135 +237,104 @@ function LoginForm() {
               </div>
             )}
 
-            {confirmationStep ? (
+            {authMode === "register" && (
               <div>
-                <label htmlFor="input-code" className={fieldLabel}>
-                  Código de confirmación
+                <label htmlFor="input-name" className={fieldLabel}>
+                  Nombre completo
                 </label>
                 <input
                   ref={firstFieldRef}
-                  id="input-code"
-                  name="confirmation_code"
+                  id="input-name"
+                  name="name"
                   type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
+                  autoComplete="name"
                   required
-                  value={confirmationCode}
-                  onChange={(e) => setConfirmationCode(e.target.value)}
-                  disabled={confirmMutation.isPending}
+                  disabled={registerMutation.isPending}
                   aria-describedby={describedBy}
-                  className={`${fieldInput} tabular text-center font-mono text-lg tracking-[0.3em]`}
-                  placeholder="123456"
+                  className={fieldInput}
                 />
-                <div className="mt-3 flex items-center justify-between text-sm">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await resendCodeMutation.mutateAsync(registeredEmail);
-                        showToast("Código reenviado a tu correo.");
-                      } catch (err: unknown) {
-                        reportError(err, "Error al reenviar código");
-                      }
-                    }}
-                    disabled={cooldown.active}
-                    className="rounded-xs font-semibold text-ink underline underline-offset-4 hover:no-underline"
-                  >
-                    Reenviar código
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmationStep(false)}
-                    className="rounded-xs text-ink-2 hover:text-ink"
-                  >
-                    Volver al formulario
-                  </button>
-                </div>
               </div>
-            ) : (
-              <>
-                {authMode === "register" && (
-                  <div>
-                    <label htmlFor="input-name" className={fieldLabel}>
-                      Nombre completo
-                    </label>
-                    <input
-                      ref={firstFieldRef}
-                      id="input-name"
-                      name="name"
-                      type="text"
-                      autoComplete="name"
-                      required
-                      disabled={registerMutation.isPending}
-                      aria-describedby={describedBy}
-                      className={fieldInput}
-                    />
-                  </div>
-                )}
+            )}
 
-                <div>
-                  <label htmlFor="input-email" className={fieldLabel}>
-                    Correo electrónico
-                  </label>
-                  <input
-                    ref={authMode === "login" ? firstFieldRef : undefined}
-                    id="input-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    disabled={loginMutation.isPending || registerMutation.isPending}
-                    aria-describedby={describedBy}
-                    className={fieldInput}
-                  />
-                </div>
+            <div>
+              <label htmlFor="input-email" className={fieldLabel}>
+                Correo electrónico
+              </label>
+              <input
+                ref={authMode === "login" ? firstFieldRef : undefined}
+                id="input-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                disabled={loginMutation.isPending || registerMutation.isPending}
+                aria-describedby={describedBy}
+                className={fieldInput}
+              />
+            </div>
 
-                <div>
-                  <label htmlFor="input-password" className={fieldLabel}>
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="input-password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
-                      required
-                      disabled={loginMutation.isPending || registerMutation.isPending}
-                      aria-describedby={[describedBy, "password-hint"].filter(Boolean).join(" ")}
-                      className={`${fieldInput} pr-12`}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Mostrar contraseña"
-                      aria-pressed={showPassword}
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={loginMutation.isPending || registerMutation.isPending}
-                      className="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-sm text-ink-2 transition-colors duration-(--dur-1) ease-out-soft hover:text-ink disabled:opacity-50"
-                    >
-                      {showPassword ? (
-                        <EyeOff aria-hidden="true" className="size-4" />
-                      ) : (
-                        <Eye aria-hidden="true" className="size-4" />
-                      )}
-                    </button>
-                  </div>
-                  {authMode === "register" ? (
-                    <p id="password-hint" className="mt-1.5 text-sm text-ink-2">
-                      {PASSWORD_POLICY_MESSAGE}
-                    </p>
+            <div>
+              <label htmlFor="input-password" className={fieldLabel}>
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="input-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                  required
+                  disabled={loginMutation.isPending || registerMutation.isPending}
+                  aria-describedby={[describedBy, "password-hint"].filter(Boolean).join(" ")}
+                  className={`${fieldInput} pr-12`}
+                />
+                <button
+                  type="button"
+                  aria-label="Mostrar contraseña"
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loginMutation.isPending || registerMutation.isPending}
+                  className="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-sm text-ink-2 transition-colors duration-(--dur-1) ease-out-soft hover:text-ink disabled:opacity-50"
+                >
+                  {showPassword ? (
+                    <EyeOff aria-hidden="true" className="size-4" />
                   ) : (
-                    <p id="password-hint" className="mt-1.5 text-sm">
-                      <Link
-                        href="/recuperar"
-                        className="rounded-xs font-medium text-ink-2 underline underline-offset-4 hover:text-ink hover:no-underline"
-                      >
-                        ¿Olvidaste tu contraseña?
-                      </Link>
-                    </p>
+                    <Eye aria-hidden="true" className="size-4" />
                   )}
-                </div>
-              </>
+                </button>
+              </div>
+              {authMode === "register" ? (
+                <p id="password-hint" className="mt-1.5 text-sm text-ink-2">
+                  {PASSWORD_POLICY_MESSAGE}
+                </p>
+              ) : (
+                <p id="password-hint" className="mt-1.5 text-sm">
+                  <Link
+                    href="/recuperar"
+                    className="rounded-xs font-medium text-ink-2 underline underline-offset-4 hover:text-ink hover:no-underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </p>
+              )}
+            </div>
+
+            {authMode === "register" && (
+              <div>
+                <label htmlFor="input-confirm-password" className={fieldLabel}>
+                  Confirmar contraseña
+                </label>
+                <input
+                  id="input-confirm-password"
+                  name="confirm_password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  disabled={registerMutation.isPending}
+                  aria-describedby={describedBy}
+                  className={fieldInput}
+                />
+              </div>
             )}
 
             <button
@@ -415,21 +356,16 @@ function LoginForm() {
             </button>
           </form>
 
-          {!confirmationStep && (
-            <>
-
-              <p className="mt-6 text-center text-sm text-ink-2">
-                {authMode === "login" ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
-                <button
-                  type="button"
-                  onClick={() => switchMode(authMode === "login" ? "register" : "login")}
-                  className="rounded-xs font-semibold text-ink underline underline-offset-4 hover:no-underline"
-                >
-                  {authMode === "login" ? "Crear cuenta" : "Iniciar sesión"}
-                </button>
-              </p>
-            </>
-          )}
+          <p className="mt-6 text-center text-sm text-ink-2">
+            {authMode === "login" ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
+            <button
+              type="button"
+              onClick={() => switchMode(authMode === "login" ? "register" : "login")}
+              className="rounded-xs font-semibold text-ink underline underline-offset-4 hover:no-underline"
+            >
+              {authMode === "login" ? "Crear cuenta" : "Iniciar sesión"}
+            </button>
+          </p>
         </section>
       </main>
     </div>

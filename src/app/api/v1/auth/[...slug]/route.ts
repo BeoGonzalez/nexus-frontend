@@ -75,6 +75,9 @@ const MSG = {
   forgot: 'Si la cuenta existe, recibirás un código de verificación en tu correo.',
   resend: 'Si la cuenta existe y está pendiente de confirmación, se reenvió el código.',
   register: 'No se pudo completar el registro. Verifica los datos e inténtalo nuevamente.',
+  // Decisión de producto: en el registro se informa que el correo ya tiene cuenta (el login sigue siendo
+  // anti-enumeración). El rate limit por email/IP del BFF y del backend acota el sondeo de correos.
+  alreadyRegistered: 'Este usuario ya está registrado.',
   sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente.',
 } as const;
 
@@ -231,6 +234,10 @@ export async function POST(request: NextRequest, context: Ctx) {
       if (upstream.status >= 500) {
         securityLog('error', 'upstream.error', { service: 'auth', action, status: upstream.status, request_id: rid });
         return gatewayErrorResponse(rid);
+      }
+      // 409 del backend en el registro = el correo ya tiene cuenta (texto propio, nunca el del backend).
+      if (action === 'register' && upstream.status === 409) {
+        return errorResponse(409, MSG.alreadyRegistered);
       }
       return errorResponse(
         upstream.status === 422 ? 422 : 400,
