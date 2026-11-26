@@ -190,3 +190,32 @@ describe('BFF /api/v1/auth (OWASP A04/A07)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('BFF /api/v1/auth/register: usuario ya registrado', () => {
+  const body = { name: 'Ana', email: 'ana@b.cl', password: 'Segura#2026abc' };
+
+  it('409 del backend → 409 "Este usuario ya está registrado."', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(json({ detail: 'Este usuario ya está registrado.' }, 409))
+    );
+    const res = await POST(post('register', body), ctx('register'));
+    expect(res.status).toBe(409);
+    expect((await res.json()).detail).toBe('Este usuario ya está registrado.');
+  });
+
+  it('el mensaje del 409 es del BFF, no el texto que mande el backend', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: 'texto interno arn:aws:...' }, 409)));
+    const res = await POST(post('register', body), ctx('register'));
+    expect((await res.json()).detail).toBe('Este usuario ya está registrado.');
+  });
+
+  it('otros rechazos del registro siguen con el mensaje genérico', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: 'La contraseña no cumple la política.' }, 422)));
+    const res = await POST(post('register', body), ctx('register'));
+    expect(res.status).toBe(422);
+    expect((await res.json()).detail).toBe(
+      'No se pudo completar el registro. Verifica los datos e inténtalo nuevamente.'
+    );
+  });
+});

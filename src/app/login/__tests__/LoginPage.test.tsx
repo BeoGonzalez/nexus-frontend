@@ -11,13 +11,9 @@ vi.mock('next/navigation', () => ({
 const mutation = () => ({ mutateAsync: vi.fn(), isPending: false, error: null as Error | null });
 const login = mutation();
 const register = mutation();
-const confirm = mutation();
-const resend = mutation();
 vi.mock('@/application/hooks/useAuthMutations', () => ({
   useLoginMutation: () => login,
   useRegisterMutation: () => register,
-  useConfirmAccountMutation: () => confirm,
-  useResendCodeMutation: () => resend,
 }));
 
 import LoginPage from '@/app/login/page';
@@ -26,8 +22,8 @@ beforeEach(() => {
   localStorage.clear();
   login.error = null;
   register.error = null;
-  confirm.error = null;
   login.mutateAsync.mockReset();
+  register.mutateAsync.mockReset();
 });
 
 const tooMany = (retryAfter: number) =>
@@ -106,5 +102,44 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('Contraseña'), 'secreto123');
     await userEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
     expect(login.mutateAsync).toHaveBeenCalledWith({ email: 'ana@example.com', password: 'secreto123' });
+  });
+
+  describe('registro sin código de verificación', () => {
+    const fillRegister = async (password: string, confirmPassword: string) => {
+      await userEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+      await userEvent.type(screen.getByLabelText('Nombre completo'), 'Ana Pérez');
+      await userEvent.type(screen.getByLabelText('Correo electrónico'), 'ana@example.com');
+      await userEvent.type(screen.getByLabelText('Contraseña'), password);
+      await userEvent.type(screen.getByLabelText('Confirmar contraseña'), confirmPassword);
+      await userEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    };
+
+    it('muestra el campo "Confirmar contraseña" y ningún campo de código', async () => {
+      render(<LoginPage />);
+      await userEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+      expect(screen.getByLabelText('Confirmar contraseña')).toHaveAttribute('autocomplete', 'new-password');
+      expect(screen.queryByLabelText(/código/i)).not.toBeInTheDocument();
+    });
+
+    it('si las contraseñas no coinciden no llama a Cognito', async () => {
+      render(<LoginPage />);
+      await fillRegister('Secreto#12345', 'Secreto#99999');
+      expect(await screen.findByText('Las contraseñas no coinciden.')).toBeInTheDocument();
+      expect(register.mutateAsync).not.toHaveBeenCalled();
+    });
+
+    it('registra en Cognito e inicia sesión directamente', async () => {
+      register.mutateAsync.mockResolvedValue({ is_confirmed: true });
+      login.mutateAsync.mockResolvedValue({ authenticated: true, expires_in: 3600 });
+      render(<LoginPage />);
+      await fillRegister('Secreto#12345', 'Secreto#12345');
+      expect(register.mutateAsync).toHaveBeenCalledWith({
+        name: 'Ana Pérez',
+        email: 'ana@example.com',
+        password: 'Secreto#12345',
+      });
+      expect(login.mutateAsync).toHaveBeenCalledWith({ email: 'ana@example.com', password: 'Secreto#12345' });
+      expect(screen.queryByLabelText(/código/i)).not.toBeInTheDocument();
+    });
   });
 });
