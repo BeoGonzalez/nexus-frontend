@@ -96,3 +96,23 @@ describe('proxy: CSP y Grafana Faro', () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe('proxy: redirección de /admin sin sesión', () => {
+  it('redirige al origen canónico de SITE_URL (detrás de API Gateway el Host/proto internos no son públicos)', async () => {
+    process.env.SITE_URL = 'https://abc123.execute-api.us-east-1.amazonaws.com';
+    try {
+      const res = await proxy(new NextRequest('http://internal-alb.local/admin'));
+      expect(res.status).toBe(307);
+      expect(res.headers.get('location')).toBe(
+        'https://abc123.execute-api.us-east-1.amazonaws.com/login?redirect=%2Fadmin'
+      );
+    } finally {
+      delete process.env.SITE_URL;
+    }
+  });
+
+  it('sin SITE_URL conserva el origen de la petición', async () => {
+    const res = await proxy(new NextRequest('http://localhost:3000/admin'));
+    expect(res.headers.get('location')).toBe('http://localhost:3000/login?redirect=%2Fadmin');
+  });
+});

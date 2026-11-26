@@ -89,6 +89,13 @@ export function rateLimit(key: string, limit: number, windowMs: number, now = Da
  * `TRUSTED_PROXY_HOPS` posiciones desde la derecha (por defecto 1 = el ALB).
  */
 export function clientIp(headers: Headers): string {
+  // Detrás de API Gateway HTTP no llega X-Forwarded-For: API Gateway SOBRESCRIBE esta cabecera con la
+  // IP real ($context.identity.sourceIp). Solo se confía en ella si el despliegue la declara.
+  const trusted = process.env.CLIENT_IP_HEADER?.trim();
+  if (trusted) {
+    const ip = headers.get(trusted)?.trim();
+    if (ip) return ip.slice(0, 64);
+  }
   const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
   const xff = headers.get('x-forwarded-for');
   if (xff) {
