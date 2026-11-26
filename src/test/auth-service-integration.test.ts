@@ -7,6 +7,7 @@ import type {
   AuthHealthResponse,
   AuthGenericMessageResponse,
 } from '@/domain/models';
+import { policyPassword } from './passwords';
 
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8001';
 
@@ -14,7 +15,7 @@ describe('Nexus Auth Service & BFF Integration Tests (AWS Cognito Microservice)'
   const testUser = {
     name: 'Coleccionista Test CI',
     email: `ci_user_${Date.now()}@nexus.com`,
-    password: 'Password123!',
+    password: policyPassword(),
   };
 
   let authToken: string = '';
@@ -147,7 +148,7 @@ describe('Nexus Auth Service & BFF Integration Tests (AWS Cognito Microservice)'
       body: JSON.stringify({
         email: testUser.email,
         confirmation_code: '123456',
-        new_password: 'NewPassword123!',
+        new_password: policyPassword(),
       }),
     });
 

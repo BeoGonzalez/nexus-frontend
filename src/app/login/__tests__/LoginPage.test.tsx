@@ -17,6 +17,7 @@ vi.mock('@/application/hooks/useAuthMutations', () => ({
 }));
 
 import LoginPage from '@/app/login/page';
+import { policyPassword } from '@/test/passwords';
 
 beforeEach(() => {
   localStorage.clear();
@@ -123,7 +124,7 @@ describe('LoginPage', () => {
 
     it('si las contraseñas no coinciden no llama a Cognito', async () => {
       render(<LoginPage />);
-      await fillRegister('Secreto#12345', 'Secreto#99999');
+      await fillRegister(policyPassword(), policyPassword());
       expect(await screen.findByText('Las contraseñas no coinciden.')).toBeInTheDocument();
       expect(register.mutateAsync).not.toHaveBeenCalled();
     });
@@ -132,13 +133,14 @@ describe('LoginPage', () => {
       register.mutateAsync.mockResolvedValue({ is_confirmed: true });
       login.mutateAsync.mockResolvedValue({ authenticated: true, expires_in: 3600 });
       render(<LoginPage />);
-      await fillRegister('Secreto#12345', 'Secreto#12345');
+      const password = policyPassword();
+      await fillRegister(password, password);
       expect(register.mutateAsync).toHaveBeenCalledWith({
         name: 'Ana Pérez',
         email: 'ana@example.com',
-        password: 'Secreto#12345',
+        password,
       });
-      expect(login.mutateAsync).toHaveBeenCalledWith({ email: 'ana@example.com', password: 'Secreto#12345' });
+      expect(login.mutateAsync).toHaveBeenCalledWith({ email: 'ana@example.com', password });
       expect(screen.queryByLabelText(/código/i)).not.toBeInTheDocument();
     });
   });

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET, POST } from '../[...slug]/route';
 import { REFRESH_COOKIE, SESSION_COOKIE } from '@/infrastructure/bff/sessionCookie';
+import { policyPassword } from '@/test/passwords';
 
 const ID_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2lnbmF0dXJl';
 const ctx = (...slug: string[]) => ({ params: Promise.resolve({ slug }) });
@@ -156,7 +157,7 @@ describe('BFF /api/v1/auth (OWASP A04/A07)', () => {
 
   it.each([
     ['login', { email: 'a@b.cl', password: 'x' }],
-    ['register', { name: 'Ana', email: 'a@b.cl', password: 'Segura#2026abc' }],
+    ['register', { name: 'Ana', email: 'a@b.cl', password: policyPassword() }],
     ['forgot-password', { email: 'a@b.cl' }],
     ['confirm', { email: 'a@b.cl', confirmation_code: '123456' }],
   ])('propaga el 429 del backend en %s con Retry-After (no lo disfraza de 401/200)', async (action, body) => {
@@ -192,7 +193,7 @@ describe('BFF /api/v1/auth (OWASP A04/A07)', () => {
 });
 
 describe('BFF /api/v1/auth/register: usuario ya registrado', () => {
-  const body = { name: 'Ana', email: 'ana@b.cl', password: 'Segura#2026abc' };
+  const body = { name: 'Ana', email: 'ana@b.cl', password: policyPassword() };
 
   it('409 del backend → 409 "Este usuario ya está registrado."', async () => {
     vi.stubGlobal(
