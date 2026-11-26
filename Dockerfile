@@ -41,7 +41,7 @@ RUN pnpm build \
  && ln -s /tmp/next-cache .next/standalone/.next/cache
 
 # ---------------------------------------------------------------- runtime
-FROM gcr.io/distroless/nodejs22-debian13:nonroot@sha256:f991e86a080567b6ab7c3392e36f7a0a4f9300639e526b48ee81b92d523af62e AS runner
+FROM gcr.io/distroless/nodejs22-debian13:nonroot@sha256:c73ddeb03e1dc2d579aa111c83d6699c6b8b487e35c0c631d4a3a20229fc25ee AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
