@@ -155,7 +155,10 @@ export function proxy(request: NextRequest) {
 
   // ---------------------------------------------------------------- Páginas
   if (pathname.startsWith('/admin') && !request.cookies.get(SESSION_COOKIE)?.value) {
-    const url = request.nextUrl.clone();
+    // Origen público de SITE_URL: detrás de API Gateway el Host y el protocolo que ve Next.js son los
+    // del ALB interno (http), no los del navegador.
+    const site = process.env.SITE_URL;
+    const url = site && /^https?:\/\//.test(site) ? new URL(site) : request.nextUrl.clone();
     url.pathname = '/login';
     url.search = `?redirect=${encodeURIComponent('/admin')}`;
     const redirect = NextResponse.redirect(url);

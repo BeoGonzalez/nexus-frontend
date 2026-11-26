@@ -61,3 +61,23 @@ describe('rate limiter resistente a inundación de claves (A07)', () => {
     expect(limiter.has('fresh')).toBe(true);
   });
 });
+
+describe('clientIp detrás de API Gateway HTTP (CLIENT_IP_HEADER)', () => {
+  // API Gateway HTTP no envía X-Forwarded-For: el ALB interno solo ve la IP del VPC Link. API Gateway
+  // SOBRESCRIBE la cabecera configurada con $context.identity.sourceIp, así que el cliente no la falsifica.
+  it('usa la cabecera de confianza configurada e ignora X-Forwarded-For', () => {
+    vi.stubEnv('CLIENT_IP_HEADER', 'x-nexus-client-ip');
+    const headers = new Headers({ 'x-nexus-client-ip': '203.0.113.9', 'x-forwarded-for': '10.0.1.25' });
+    expect(clientIp(headers)).toBe('203.0.113.9');
+  });
+
+  it('si falta la cabecera, vuelve a X-Forwarded-For', () => {
+    vi.stubEnv('CLIENT_IP_HEADER', 'x-nexus-client-ip');
+    expect(clientIp(new Headers({ 'x-forwarded-for': '1.2.3.4, 203.0.113.7' }))).toBe('203.0.113.7');
+  });
+
+  it('sin CLIENT_IP_HEADER no confía en esa cabecera (la podría enviar el cliente)', () => {
+    const headers = new Headers({ 'x-nexus-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.7' });
+    expect(clientIp(headers)).toBe('203.0.113.7');
+  });
+});
