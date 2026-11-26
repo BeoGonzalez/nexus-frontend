@@ -1,11 +1,15 @@
 /**
  * Grafana Faro (Frontend Observability): Web Vitals, errores de JavaScript y sesiones del navegador.
  *
- * - Solo se activa con `NEXT_PUBLIC_FARO_URL` (https, sin credenciales). Esa URL es pública por diseño: la usa el
- *   navegador. No lleva el token de Grafana Cloud.
+ * - Solo se activa con `NEXT_PUBLIC_FARO_URL` (https, sin credenciales). No lleva el token de Grafana Cloud.
+ * - El navegador NO habla con el colector: envía a `FARO_RELAY_PATH` (mismo origen) y el BFF reenvía. Los
+ *   bloqueadores de anuncios cortan `faro-collector-*.grafana.net` y el dashboard quedaba en "No data".
  * - Privacidad (OWASP A02/A09): antes de enviar se eliminan query y fragmento de TODAS las URLs (códigos de
  *   recuperación, emails, búsquedas). No se identifica al usuario.
  */
+
+/** Ruta del propio sitio que reenvía a Faro (nombre neutro: las listas de bloqueo filtran "telemetry"/"collect"). */
+export const FARO_RELAY_PATH = '/api/v1/client-events';
 
 export interface FaroConfig {
   url: string;
@@ -55,7 +59,7 @@ export async function initFaro(): Promise<void> {
   try {
     const { initializeFaro, getWebInstrumentations } = await import('@grafana/faro-web-sdk');
     initializeFaro({
-      url: config.url,
+      url: FARO_RELAY_PATH,
       app: {
         name: 'nexus-frontend',
         version: process.env.NEXT_PUBLIC_APP_VERSION || 'dev',

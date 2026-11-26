@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { faroConfig, scrubUrl } from '@/infrastructure/observability/faro';
+import { FARO_RELAY_PATH, faroConfig, scrubUrl } from '@/infrastructure/observability/faro';
 
 describe('Grafana Faro (observabilidad del navegador)', () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -29,5 +29,10 @@ describe('Grafana Faro (observabilidad del navegador)', () => {
     expect(scrubUrl('https://tienda/recuperar?email=ana@x.cl&code=123456#paso2')).toBe('https://tienda/recuperar');
     expect(scrubUrl('/catalogo?q=hades')).toBe('/catalogo');
     expect(scrubUrl('no es url ?a=1')).toBe('no es url ');
+  });
+
+  it('el navegador envía a una ruta del propio sitio, nunca al dominio del colector (lo bloquean los ad-blockers)', () => {
+    expect(FARO_RELAY_PATH).toBe('/api/v1/client-events');
+    expect(FARO_RELAY_PATH).not.toMatch(/faro|grafana|collect|telemetry|analytics|track/i);
   });
 });

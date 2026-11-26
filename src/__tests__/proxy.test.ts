@@ -85,14 +85,12 @@ describe('proxy: Content-Security-Policy (A02/A05)', () => {
 });
 
 describe('proxy: CSP y Grafana Faro', () => {
-  it('permite enviar a Faro solo a su origen exacto', async () => {
+  it('Faro va por el mismo origen: la CSP no abre connect-src al colector de Grafana', async () => {
     const { vi } = await import('vitest');
     vi.stubEnv('NEXT_PUBLIC_FARO_URL', 'https://faro-collector-prod-us-east-0.grafana.net/collect/abc');
     const connect = buildCsp('bm9uY2U=', false).split('; ').find((d) => d.startsWith('connect-src'))!;
-    expect(connect).toContain('https://faro-collector-prod-us-east-0.grafana.net');
-    expect(connect).not.toContain('/collect/abc');
-    vi.stubEnv('NEXT_PUBLIC_FARO_URL', 'http://inseguro.example/collect/x');
-    expect(buildCsp('bm9uY2U=', false)).not.toContain('inseguro.example');
+    expect(connect).toContain("'self'");
+    expect(connect).not.toContain('grafana.net');
     vi.unstubAllEnvs();
   });
 });
