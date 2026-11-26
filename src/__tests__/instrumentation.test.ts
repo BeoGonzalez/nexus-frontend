@@ -37,7 +37,7 @@ describe('instrumentation.ts (servidor Next.js)', () => {
     const { register } = await import('@/instrumentation');
     await register();
     expect(pyroscopeInit).toHaveBeenCalledWith(
-      expect.objectContaining({ appName: 'nexus.nexus-frontend', serverAddress: 'http://10.0.11.50:4040' })
+      expect.objectContaining({ appName: 'nexus-frontend', serverAddress: 'http://10.0.11.50:4040' })
     );
     expect(JSON.stringify(pyroscopeInit.mock.calls[0][0])).not.toMatch(/token|password|basicAuth/i);
     expect(pyroscopeStart).toHaveBeenCalled();

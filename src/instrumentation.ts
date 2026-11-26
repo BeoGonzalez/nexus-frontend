@@ -28,7 +28,7 @@ export async function register(): Promise<void> {
     try {
       const Pyroscope = (await import('@pyroscope/nodejs')).default;
       Pyroscope.init({
-        appName: `nexus.${SERVICE_NAME}`,
+        appName: SERVICE_NAME, // mismo nombre que trazas, logs y Faro
         serverAddress: pyroscopeAddress,
         tags: { service_namespace: 'nexus', environment: process.env.NODE_ENV || 'production' },
       });
